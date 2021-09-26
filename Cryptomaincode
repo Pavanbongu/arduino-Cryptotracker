@@ -1,0 +1,309 @@
+/*\
+ * 
+ * This is the code for the project
+ * 
+ * "Crypto Currency Monitor using ESP32 & E-Paper Display"
+ * 
+ * 
+ * To watch the full tutorial video, just head on to our YouTube channel
+ * 
+ * https://www.youtube.com/techiesms
+ * 
+ * 
+ *         techiesms
+ * explore | learn | share 
+ * 
+ * 
+ */
+
+#include <WiFi.h>
+
+#include <HTTPClient.h>
+#include <WifiClientSecure.h>
+#include <ArduinoJson.h>
+#include "cryptos.h"
+#include "coingecko-api.h"
+#include "SPI.h"
+#include "TFT_eSPI.h"
+#include "Free_Fonts.h" // Include the header file attached to this sketch
+#include "Bitcoin.h"
+
+// Use hardware SPI
+TFT_eSPI tft = TFT_eSPI();
+
+unsigned long drawTime = 0;
+
+// ----------------------------
+// Configurations - Update these
+// ----------------------------
+
+const char *ssid = "Airtel-MyWiFi-AMF-311WW-A820";
+const char *password = "09215eba";
+unsigned long secondsForEachCrypto = 1;
+int WIDTH=320;
+int HEIGHT=240;
+
+void setup()
+{
+  Serial.begin(115200);
+  
+  tft.begin();
+
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+  tft.fillTriangle(25, 90, 0,125, 50, 125, TFT_RED);
+  tft.fillRect(25,90,120,35,TFT_RED);
+  tft.fillTriangle(145, 90, 120,125, 170, 125, TFT_BLACK);
+  
+ /* //tft.drawXBitmap(0,0, bitcoin, 320, 240, TFT_WHITE);
+    tft.setCursor(50,120);
+    tft.setFreeFont(FSSBO18);
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_BLACK);
+    
+    
+  int n=100;
+    while(n>0){
+
+     
+     //tft.fillScreen(TFT_BLACK);
+    tft.setCursor(WIDTH/2-120,HEIGHT/2);
+    tft.setFreeFont(FSSBO18);
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_WHITE);
+    tft.print("NUE  ");
+    tft.print("ROLINK");
+     uint16_t colour = random(0x10000); // Returns colour 0 - 0xFFFF
+    int16_t x = random(WIDTH);        // Random x coordinate
+    int16_t y = random(HEIGHT);       // Random y coordinate
+    tft.drawPixel( x, y, colour);      // Draw pixel in sprite
+    delay(100);
+    n--;
+    }
+  
+  //delay(20000);
+   tft.fillScreen(TFT_WHITE);
+       
+    tft.setCursor(80,120);
+    tft.setFreeFont(FS9);
+    tft.setTextSize(1.5);
+    tft.setTextColor(TFT_BLACK);
+    tft.print("Connecting to Network ");
+
+  connectToWifi();
+
+  delay(40);
+}
+
+void loop()
+{
+  Serial.println(WiFi.status());
+  if(WiFi.status() != WL_CONNECTED){
+    //tft.setRotation(1);
+  //tft.fillScreen(TFT_WHITE);
+  /*tft.setCursor(80,120);
+  tft.setFreeFont(FS9);
+  tft.setTextSize(1.5);
+  tft.setTextColor(TFT_BLACK);
+  tft.print("Connecting to Network ");*/
+    connectToWifi();
+  }else{
+  downloadBaseData("inr");
+  delay(1000);
+  downloadBtcAndEthPrice();
+  for (int i = 0; i < cryptosCount; i++)
+  {
+    renderCryptoCard(cryptos[i]);
+    delay(secondsForEachCrypto * 1000);
+  }
+  }
+}
+
+void renderCryptoCard(Crypto crypto)
+{
+
+  //Serial.print("Crypto Name  - "); Serial.println(crypto.symbol);
+
+  //Serial.print("price usd - "); Serial.println(formatCurrency(crypto.price.inr));
+
+  //Serial.print("Day change - "); Serial.println(formatPercentageChange(crypto.dayChange));
+
+  //Serial.print("Week change - "); Serial.println(formatPercentageChange(crypto.weekChange));
+ 
+  //Serial.print("Price in Bitcoin - "); Serial.println(crypto.price.btc);
+  
+  //Serial.print("Price in ETH - "); Serial.println(crypto.price.eth);
+  Serial.println(crypto.dayChange);
+
+  int xpos =350;
+  int ypos =40;
+
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  // Select different fonts to draw on screen using the print class
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+//  header("Using print() method", TFT_NAVY);
+
+  // For comaptibility with Adafruit_GFX library the text background is not plotted when using the print class
+  // even if we specify it.
+
+  
+  tft.fillScreen(TFT_BLACK);
+  //tft.drawXBitmap(150,120, bitcoin, 200, 150, TFT_WHITE);
+  tft.setTextSize(2);
+  tft.setTextColor(TFT_WHITE);
+  //tft.fillRect(0,15,150,50,0xDF6310);
+  tft.setCursor(65, 50);    // Set cursor near top left corner of screen
+
+  tft.setFreeFont(FS9);     // Select the orginal small TomThumb font
+  //tft.println();             // Move cursor down a line
+  tft.print(crypto.symbol+" : "+ formatCurrency(crypto.price.inr));    // Print the font name onto the TFT screen
+  tft.setCursor(5, 100);
+  tft.setFreeFont(FS9);
+  tft.setTextSize(0.9);
+  if(crypto.dayChange<0){
+  tft.setCursor(5, 100);
+  tft.setFreeFont(FS9);
+  tft.setTextSize(0.9);
+  tft.setTextColor(TFT_RED);
+  tft.println("Day change : "+ formatPercentageChange(crypto.dayChange));
+  }else{
+  tft.setCursor(5, 100);
+  tft.setFreeFont(FS9);
+  tft.setTextSize(0.9);
+  tft.setTextColor(TFT_GREEN);
+  tft.println("Day change : "+ formatPercentageChange(crypto.dayChange));
+    
+  }
+  if(crypto.weekChange<0){
+  tft.setCursor(160, 100);
+  tft.setFreeFont(FS9);
+  tft.setTextSize(0.9);
+  tft.setTextColor(TFT_RED);
+  //tft.fillRect(155,85,180,25,TFT_GREEN);
+  tft.println("Week chang : "+ formatPercentageChange(crypto.weekChange));
+  }else{
+  tft.setCursor(160, 100);
+  tft.setFreeFont(FS9);
+  tft.setTextSize(0.9);
+  tft.setTextColor(TFT_GREEN);
+  //tft.fillRect(155,85,180,25,TFT_GREEN);
+  tft.println("Week chang : "+ formatPercentageChange(crypto.weekChange));
+  }
+  //tft.println();
+  int x=0;
+  int y=0;
+  for(int i=0;i<320;i++){
+    tft.fillRect(0,150,i,25,TFT_WHITE);
+     delay(10);
+  }
+ 
+ 
+}
+
+
+
+void connectToWifi()
+{
+  WiFi.begin(ssid, password);
+  String dots[3] = {".", "..", "..."};
+  int numberOfDots = 1;
+  int i=1;
+  int j=0;
+
+  //tft.setTextColor(//tft_WHITE, //tft_BLACK);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+      if(i==10){
+        j=1;
+      }else if(i==1){
+        j=0;
+      }
+     if(i<10&&j==0){
+      i++;
+     }else if(i<=10&&j==1){
+      i--;
+     }
+   
+    Serial.println("Connecting to WiFi");
+      //tft.fillScreen(TFT_WHITE);
+      //tft.fillRect(260,110,320,20,TFT_WHITE);
+
+   // delay(1000);
+      tft.setCursor(265,120);
+      tft.setFreeFont(FS9);
+      tft.setTextSize(1.5);
+      tft.setTextColor(TFT_BLACK);
+      //tft.println(dots[numberOfDots]);
+      tft.fillRect(140,138,60,25,0x5AEB);
+      tft.fillCircle(150,145+i,6,TFT_GREEN);
+      tft.fillCircle(170,152-i*0.5,6,TFT_RED);
+      tft.fillCircle(190,155-i,6,0xD664);
+      delay(120);
+
+      Serial.println("i fssssssssf value"+i);
+      Serial.println("j value"+j);
+    if (numberOfDots == 2)
+    {
+
+      
+      numberOfDots = 0;
+    }
+    else
+    {
+
+      
+      numberOfDots++;
+    }
+
+    
+    //tft.fillScreen(//tft_BLACK);
+  }
+
+  Serial.println("Connected!!!_______________");
+
+}
+
+String formatCurrency(double price)
+{
+  int digitsAfterDecimal = 3;
+
+  if (price >= 1000)
+  {
+    digitsAfterDecimal = 0;
+  }
+  else if (price >= 100)
+  {
+    digitsAfterDecimal = 1;
+  }
+  else if (price >= 1)
+  {
+    digitsAfterDecimal = 2;
+  }
+  else if (price < 0.001)
+  {
+    digitsAfterDecimal = 4;
+  }
+
+  return String(price, digitsAfterDecimal);
+}
+
+String formatPercentageChange(double change)
+{
+
+
+  double absChange = change;
+
+  if (change < 0)
+  {
+    absChange = -change;
+  }
+
+  if (absChange > 100) {
+    return String(absChange, 0) + "%";
+  } else if (absChange >= 10) {
+    return String(absChange, 1) + "%";
+  } else {
+    return String(absChange) + "%";
+  }
+}
