@@ -37,8 +37,8 @@ unsigned long drawTime = 0;
 // Configurations - Update these
 // ----------------------------
 
-const char *ssid = "Airtel-MyWiFi-AMF-311WW-A820";
-const char *password = "09215eba";
+const char *ssid = "YOUR WIFI NAME";
+const char *password = "WIFI PASSWORD";
 unsigned long secondsForEachCrypto = 1;
 int WIDTH=320;
 int HEIGHT=240;
